@@ -6,7 +6,7 @@ from typing import Any
 from dotenv import load_dotenv
 from openai import APIConnectionError, APIError, AsyncOpenAI, RateLimitError
 
-from client.response import EventType, StreamEvent, TextDelta, TokenUsage
+from client.response import StreamEvent, StreamEventType, TextDelta, TokenUsage
 
 load_dotenv()
 
@@ -58,7 +58,7 @@ class LLMClient:
                     await asyncio.sleep(wait_time)
                 else:   
                     yield StreamEvent(
-                        type=EventType.ERROR,
+                        type=StreamEventType.ERROR,
                         error=f"Rate limit exceeded: {e}"
                     )
                     return
@@ -69,14 +69,14 @@ class LLMClient:
                     await asyncio.sleep(wait_time)
                 else:
                     yield StreamEvent(
-                        type=EventType.ERROR,
+                        type=StreamEventType.ERROR,
                         error=f"API Connection error {e}"
                     )
                     return
                 
             except APIError as e:
                 yield StreamEvent(
-                    type=EventType.ERROR,
+                    type=StreamEventType.ERROR,
                     error=f"API Error: {e}"
                 )
         return
@@ -104,7 +104,7 @@ class LLMClient:
             )
         
         return StreamEvent(
-            type=EventType.MESSAGE_COMPLETE,
+            type=StreamEventType.MESSAGE_COMPLETE,
             text_delta=text_delta,
             usage=usage,
             finish_reason=choice.finish_reason,
@@ -142,12 +142,12 @@ class LLMClient:
                 text_delta = TextDelta(content=delta.content)
             
             yield StreamEvent(
-                type=EventType.TEXT_DELTA,
+                type=StreamEventType.TEXT_DELTA,
                 text_delta=text_delta,
             )
             
         yield StreamEvent(
-            type=EventType.MESSAGE_COMPLETE,
+            type=StreamEventType.MESSAGE_COMPLETE,
             finish_reason=finish_reason,
             usage=usage
         )

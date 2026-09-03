@@ -8,4 +8,5 @@ dependencies = [
     "click>=8.5.0",
     "dotenv>=0.9.9",
     "openai>=3.6.0",
+    "rich>=15.0.0",
 ]

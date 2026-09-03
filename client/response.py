@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-class EventType(str, Enum):
+class StreamEventType(str, Enum):
     TEXT_DELTA = "text_delta"
     MESSAGE_COMPLETE = "message_complete"
     ERROR = "error"
@@ -33,7 +33,7 @@ class TokenUsage:
     
 @dataclass
 class StreamEvent:
-    type: EventType
+    type: StreamEventType
     text_delta: TextDelta | None = None
     usage: TokenUsage | None = None
     finish_reason: str | None = None
