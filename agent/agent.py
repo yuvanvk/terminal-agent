@@ -6,26 +6,29 @@ from typing import Self
 from agent.events import AgentEvent, AgentEventType
 from client.llm_client import LLMClient
 from client.response import StreamEventType
+from context.context_manager import ContextManager
 
 
 class Agent:
     def __init__(self):
         self.client = LLMClient()
+        self._context_manager = ContextManager()
         
     async def run(self, message: str):
         final_response = ""
         yield AgentEvent.agent_start(message=message)
+        self._context_manager.add_user_message(content=message)
         
-        async for event in self._agent_loop(messages=[{"role": "user", "content": message}]):
+        async for event in self._agent_loop():
             if event.type == AgentEventType.TEXT_COMPLETE:
                 final_response = event.data.get("content", "")
             yield event
 
         yield AgentEvent.agent_end(response=final_response)
 
-    async def _agent_loop(self, messages) -> AsyncGenerator[AgentEvent, None]:
+    async def _agent_loop(self) -> AsyncGenerator[AgentEvent, None]:
         full_response = ""
-        async for event in self.client.chat_completion(messages=messages):
+        async for event in self.client.chat_completion(messages=self._context_manager.get_messages()):
             if event.type == StreamEventType.TEXT_DELTA and event.text_delta:
                 content = event.text_delta.content
                 full_response += content
@@ -37,6 +40,7 @@ class Agent:
                 )
                 
         if full_response:
+            self._context_manager.add_assistant_message(content=full_response)
             yield AgentEvent.text_complete(content=full_response)
                 
     async def __aenter__(self) -> Self:
