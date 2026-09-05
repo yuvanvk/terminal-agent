@@ -37,10 +37,10 @@ class AgentEvent:
         )
         
     @classmethod
-    def agent_error(cls, error: str) -> AgentEvent:
+    def agent_error(cls, error: str, details: dict[str, Any]) -> AgentEvent:
         return cls(
             type=AgentEventType.AGENT_ERROR,
-            data={ "error": error }
+            data={ "error": error, "details": details or {} }
         )
     
     @classmethod
@@ -48,4 +48,11 @@ class AgentEvent:
         return cls(
             type=AgentEventType.TEXT_DELTA,
             data={ "content": content }
+        )
+
+    @classmethod
+    def text_complete(cls, content: str) -> AgentEvent:
+        return cls(
+            type=AgentEventType.TEXT_COMPLETE,
+            data={"content": content}
         )
