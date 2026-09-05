@@ -685,6 +685,7 @@ dependencies = [
     { name = "click" },
     { name = "dotenv" },
     { name = "openai" },
+    { name = "pydantic" },
     { name = "rich" },
     { name = "tiktoken" },
 ]
@@ -694,6 +695,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.5.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "openai", specifier = ">=3.6.0" },
+    { name = "pydantic", specifier = ">=2.13.5" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "tiktoken", specifier = ">=0.14.0" },
 ]
