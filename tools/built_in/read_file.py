@@ -116,26 +116,26 @@ class ReadFile(Tool):
             
                 truncated = True
                 
-                metadata_lines = []
-                if start_idx > 0 or end_idx < total_lines:
-                    metadata_lines.append(
-                        f"Showing lines {start_idx+1}-{end_idx} of {total_lines}"
-                    )
-
-                if metadata_lines:
-                    header = " | ".join(metadata_lines) + "\n\n"
-                    output = header + output
-
-                return ToolResult.success_result(
-                    output=output,
-                    truncated=truncated,
-                    metadata={
-                        "path": str(path),
-                        "total_lines": total_lines,
-                        "shown_start": start_idx + 1,
-                        "shown_end": end_idx,
-                    },
+            metadata_lines = []
+            if start_idx > 0 or end_idx < total_lines:
+                metadata_lines.append(
+                    f"Showing lines {start_idx+1}-{end_idx} of {total_lines}"
                 )
+
+            if metadata_lines:
+                header = " | ".join(metadata_lines) + "\n\n"
+                output = header + output
+
+            return ToolResult.success_result(
+                output=output,
+                truncated=truncated,
+                metadata={
+                    "path": str(path),
+                    "total_lines": total_lines,
+                    "shown_start": start_idx + 1,
+                    "shown_end": end_idx,
+                },
+            )
         except Exception as e:
             return ToolResult.error_result(f"Failed to read file: {e}")
         
