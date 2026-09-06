@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -20,6 +22,23 @@ class ToolResult:
     error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     
+    @classmethod
+    def success_result(cls, output: str, kwargs: Any) -> ToolResult:
+        return cls(
+            success=True,
+            output=output,
+            error=None,
+            **kwargs
+        )
+        
+    @classmethod
+    def error_result(cls, error: str, output: str | None = None) -> ToolResult:
+        return cls(
+            success=False,
+            output=output,
+            error=error
+        )
+    
 @dataclass
 class ToolConfirmation:
     tool_name: str
@@ -36,7 +55,7 @@ class ToolKind(str, Enum):
     MEMORY = "memory"
 
 
-class ToolBase(ABC):
+class Tool(ABC):
     name: str = "Base tool"
     description: str = "Base tool"
     kind: ToolKind = ToolKind.READ
