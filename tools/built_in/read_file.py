@@ -132,8 +132,8 @@ class ReadFile(Tool):
                 metadata={
                     "path": str(path),
                     "total_lines": total_lines,
-                    "shown_start": start_idx + 1,
-                    "shown_end": end_idx,
+                    "start_from": start_idx + 1,
+                    "end_from": end_idx,
                 },
             )
         except Exception as e:

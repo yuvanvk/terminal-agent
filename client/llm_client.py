@@ -30,10 +30,29 @@ class LLMClient:
             await self._client.close()
             self._client = None
     
-
+    def _build_tools(self, tools: list[dict[str, Any]]) -> list[dict]:
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": tool.get("name", ""),
+                    "description": tool.get("description", ""),
+                    "parameters": tool.get(
+                        "parameters",
+                        {
+                            "type": "object",
+                            "properties": {}
+                        }
+                    )
+                }
+            }
+            for tool in tools
+        ]
+    
     async def chat_completion(
         self, 
-        messages: list[dict[str, Any]], 
+        messages: list[dict[str, Any]],
+        tools: dict[str, Any],
         stream: bool = True
     ) -> AsyncGenerator[StreamEvent, None]: 
         client = await self.get_client()
@@ -41,8 +60,13 @@ class LLMClient:
         kwargs = {
             "model": "inclusionai/ling-3.0-flash-fin:free",
             "stream": stream,
-            "messages": messages    
+            "messages": messages,
         }
+        
+        if tools:
+            kwargs["tools"] = self._build_tools(tools)
+            kwargs["tool_choice"] = "auto"
+            
         for attempt in range(self._max_retries + 1):
             try:  
                 if stream:

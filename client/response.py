@@ -8,6 +8,10 @@ class StreamEventType(str, Enum):
     TEXT_DELTA = "text_delta"
     MESSAGE_COMPLETE = "message_complete"
     ERROR = "error"
+    
+    TOOL_CALL_START = "tool_call_start"
+    TOOL_CALL_DELTA = "tool_call_delta"
+    TOOL_CALL_COMPLETE = "tool_call_complete"
 
 @dataclass
 class TextDelta:
@@ -30,11 +34,16 @@ class TokenUsage:
             cached_tokens=self.cached_tokens + other.cached_tokens,
             total_tokens=self.total_tokens + other.total_tokens
         )
-    
+@dataclass
+class ToolCallDelta:
+    pass  
+
 @dataclass
 class StreamEvent:
     type: StreamEventType
     text_delta: TextDelta | None = None
+    tool_call_delta: ToolCallDelta | None = None
+    
     usage: TokenUsage | None = None
     finish_reason: str | None = None
     error: str | None = None

@@ -22,21 +22,25 @@ class ToolResult:
     error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     
+    truncated: bool = False
+
     @classmethod
-    def success_result(cls, output: str, kwargs: Any) -> ToolResult:
+    def success_result(cls, output: str, kwargs: Any, truncated: bool = False) -> ToolResult:
         return cls(
             success=True,
             output=output,
             error=None,
+            truncated=truncated
             **kwargs
         )
         
     @classmethod
-    def error_result(cls, error: str, output: str | None = None) -> ToolResult:
+    def error_result(cls, error: str, kwargs: Any, output: str | None = None) -> ToolResult:
         return cls(
             success=False,
             output=output,
-            error=error
+            error=error,
+            **kwargs
         )
     
 @dataclass
@@ -134,5 +138,3 @@ class Tool(ABC):
             return result
         
         raise ValueError(f"Invalid schema type for tool {self.name}: {type(schema)}")
-    
-    
