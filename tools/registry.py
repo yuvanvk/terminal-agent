@@ -16,13 +16,17 @@ class ToolRegistry:
         
         self._tools[tool.name] = tool
         
+    def unregister(self, tool_name: str) -> bool:
+        if tool_name in self._tools:
+            del self._tools[tool_name]
+            return True
+
+        return False
+    
+        
     def get_tools(self) -> list[Tool]:
-        tools: list[Tool] = []
-        
-        for tool in self._tools.values():
-            tools.append(tool)
-        
-        return tools
+        return list(self._tools.values())
+
     
     def get(self, name) -> Tool | None:
         if name in self._tools:
@@ -58,7 +62,7 @@ class ToolRegistry:
             cwd=cwd
         )
         
-        await tool.execute(invocation=invocation)
+        return await tool.execute(invocation=invocation)
 
 def create_default_registry():
     registry = ToolRegistry()
