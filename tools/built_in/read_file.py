@@ -25,7 +25,7 @@ class ReadFileParams(BaseModel):
         description="Maximum number of lines to read. If not specified, reads entire file."
     )
     
-class ReadFile(Tool):
+class ReadFileTool(Tool):
     name = "read_file"
     description = (
         "Read the contents of a text file. Returns the file content with line numbers. "
@@ -94,7 +94,7 @@ class ReadFile(Tool):
             else:
                 end_idx = total_lines
             
-            selected_lines = lines[start_idx, end_idx]
+            selected_lines = lines[start_idx:end_idx]
             formatted_lines = []
             
             for i, line in enumerate(selected_lines, start=start_idx + 1):
@@ -102,7 +102,7 @@ class ReadFile(Tool):
             
             output = "\n".join(formatted_lines)
             
-            token_count = count_tokens(output)
+            token_count = count_tokens(output, "inclusionai/ling-3.0-flash-fin:free")
             truncated = False
             
             if token_count > self.MAX_TOKENS:
@@ -137,5 +137,5 @@ class ReadFile(Tool):
                 },
             )
         except Exception as e:
-            return ToolResult.error_result(f"Failed to read file: {e}")
+            return ToolResult.error_result(error=f"Failed to read file: {e}", kwargs={})
         

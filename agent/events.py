@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any
 
 from client.response import TokenUsage
+from tools.base import ToolResult
 
 
 class AgentEventType(str, Enum):
@@ -12,6 +13,10 @@ class AgentEventType(str, Enum):
     AGENT_START = "agent_start"
     AGENT_END = "agent_end"
     AGENT_ERROR = "agent_error"
+    
+    """Tool call events"""
+    TOOL_CALL_START = "tool_call_start"
+    TOOL_CALL_COMPLETE = "tool_call_complete"
     
     """Textual Events"""
     TEXT_DELTA = "text_delta"
@@ -55,4 +60,40 @@ class AgentEvent:
         return cls(
             type=AgentEventType.TEXT_COMPLETE,
             data={"content": content}
+        )
+        
+    @classmethod
+    def tool_call_start(
+        cls,
+        tool_call_id: str,
+        name: str,
+        arguments: dict[str, Any]
+    ):
+        return cls(
+            type=AgentEventType.TOOL_CALL_START,
+            data={
+                "tool_call_id": tool_call_id,
+                "name": name,
+                "agruments": arguments
+            }
+        )
+        
+    @classmethod
+    def tool_call_complete(
+        cls,
+        tool_call_id: str,
+        name: str,
+        result: ToolResult
+    ): 
+        return cls(
+            type=AgentEventType.TOOL_CALL_COMPLETE,
+            data={
+                "tool_call_id": tool_call_id,
+                "name": name,
+                "success": result.success,
+                "output": result.output,
+                "error": result.error,
+                "metadata": result.metadata,
+                "truncated": result.truncated
+            }
         )

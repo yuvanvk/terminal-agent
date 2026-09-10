@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
-from pydantic.json import model_json_schema
+from pydantic.json_schema import model_json_schema
 
 
 @dataclass
@@ -23,19 +23,24 @@ class ToolResult:
     metadata: dict[str, Any] = field(default_factory=dict)
     
     truncated: bool = False
+    
+    def to_model_output(self) -> dict[str, Any]:
+        if self.success:
+            return self.output
+        
+        return f"Error: {self.error}\n\nOutput:\n{self.output}"
 
     @classmethod
-    def success_result(cls, output: str, kwargs: Any, truncated: bool = False) -> ToolResult:
+    def success_result(cls, output: str, **kwargs: Any) -> ToolResult:
         return cls(
             success=True,
             output=output,
             error=None,
-            truncated=truncated
             **kwargs
         )
         
     @classmethod
-    def error_result(cls, error: str, kwargs: Any, output: str | None = None) -> ToolResult:
+    def error_result(cls, error: str, output: str = "", **kwargs: Any) -> ToolResult:
         return cls(
             success=False,
             output=output,
@@ -74,11 +79,11 @@ class Tool(ABC):
     async def execute(self, invocation: ToolInvocation) -> ToolResult:
         pass
     
-    def validate_params(self, params: dict[str, Any] | type["BaseModel"]) -> list[str]:
+    def validate_params(self, params: dict[str, Any] | type[BaseModel]) -> list[str]:
             schema = self.schema
             if isinstance(schema, type) and issubclass(schema, BaseModel):
                 try:
-                    BaseModel(**params)
+                    schema(**params)
                 except ValidationError as e:
                     errors = []
                     for error in e.errors():

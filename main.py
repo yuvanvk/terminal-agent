@@ -26,6 +26,7 @@ class CLI:
         final_response: str | None = None
 
         async for event in self.agent.run(message=message):
+            print(event)
             if event.type == AgentEventType.TEXT_DELTA:
                 if self.agent_streaming is False:
                     self.agent_streaming = True

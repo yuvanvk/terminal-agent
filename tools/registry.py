@@ -1,6 +1,8 @@
 import logging
+from pathlib import Path
 from typing import Any
 
+from tools import get_all_built_tools
 from tools.base import Tool, ToolInvocation, ToolResult
 
 logger = logging.getLogger(__name__)
@@ -37,7 +39,7 @@ class ToolRegistry:
     def get_schemas(self) -> list[dict[str, Any]]:
         return [tool.to_openai_json() for tool in self.get_tools()]
             
-    async def invoke(self, tool_name: str, params: dict[str, Any], cwd: str | None = None) -> ToolResult:
+    async def invoke(self, tool_name: str, params: dict[str, Any], cwd: Path) -> ToolResult:
         tool = self.get(tool_name)
         
         if tool is None:
@@ -67,4 +69,7 @@ class ToolRegistry:
 def create_default_registry():
     registry = ToolRegistry()
     
+    for tool_class in get_all_built_tools():
+        registry.register(tool_class())
+        
     return registry
