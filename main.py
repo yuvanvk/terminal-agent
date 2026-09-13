@@ -43,6 +43,13 @@ class CLI:
                 details = event.data.get("details")
                 
                 self.tui.log_error(message=message, details=details or {})
+            elif event.type == AgentEventType.TOOL_CALL_START:
+                tool = event.data.get("name")
+                if not tool:
+                    return
+                
+            elif event.type == AgentEventType.TOOL_CALL_COMPLETE:
+                pass
         
         return final_response
         
