@@ -44,10 +44,18 @@ class CLI:
                 
                 self.tui.log_error(message=message, details=details or {})
             elif event.type == AgentEventType.TOOL_CALL_START:
-                tool = event.data.get("name")
+                tool_name = event.data.get("name", "unknown")
+                tool = self.agent._tool_registry.get(tool_name)
+                tool_kind = None
                 if not tool:
-                    return
+                    tool_kind = None
                 
+                self.tui.tool_call_start(
+                    tool_call_id=event.data.get("tool_call_id"),
+                    tool_call_name=tool_name,
+                    tool_kind=tool_kind,
+                    args=event.data.get("arguments", {})
+                )
             elif event.type == AgentEventType.TOOL_CALL_COMPLETE:
                 pass
         

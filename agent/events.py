@@ -74,7 +74,7 @@ class AgentEvent:
             data={
                 "tool_call_id": tool_call_id,
                 "name": name,
-                "agruments": arguments
+                "arguments": arguments
             }
         )
         
