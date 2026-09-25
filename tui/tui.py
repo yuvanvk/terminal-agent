@@ -1,15 +1,18 @@
+import re
 from pathlib import Path
 from typing import Any
 
 from rich import box
-from rich.console import Console
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.rule import Rule
+from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
 from tui.agent_theme import AGENT_THEME
 from utils.path import get_relative_path_to_cwd
+from utils.token import truncate_text
 
 _console: Console | None = None
 
@@ -106,8 +109,33 @@ class TUI:
             ".sql": "sql",
         }.get(suffix, "text")
 
-    def _extract_read_file_code(context: str) -> str:
-        pass
+    def _extract_read_file_code(self, text: str) -> tuple[int, str] | None:
+        body = text
+        header = re.match(r"^Showing lines (\d+)-(\d+) of (\d+)\n\n", text)
+
+        if header:
+            body = text[header.end(): ]
+        
+        code_lines: list[str] = []
+        start_line_no: int | None = None
+        
+        for line in body.splitlines():
+            m = re.match(r"^\s*(\d+)\|(.*)$", line)
+            if m is None:
+                return None
+            
+            line_no = m.group(1)
+            code_line = m.group(2)
+            
+            if start_line_no is None:
+                start_line_no = line_no
+            
+            code_lines.append(code_line)
+            
+        if start_line_no is None:
+            return None
+        
+        return start_line_no, "\n".join(code_lines)
 
     def tool_call_start(
         self,
@@ -117,7 +145,7 @@ class TUI:
         args: dict[str, Any],
     ):
         self._tool_args_by_call_id[tool_call_id] = args
-        border_style = f"tool.${tool_kind}" if tool_kind else "tool"
+        border_style = f"tool.{tool_kind}" if tool_kind else "tool"
 
         title = Text.assemble(
             ("⏺ ", "muted"),
@@ -149,6 +177,90 @@ class TUI:
         )
 
         self.console.print(panel)
+        
+    def tool_call_complete(
+        self,
+        tool_call_id: str,
+        tool_call_name: str,
+        tool_kind: str | None,
+        success: bool,
+        output: str,
+        error: str | None,
+        metadata: dict[str, Any],
+        truncated: bool
+    ):
+        border_style = f"tool.{tool_kind}" if tool_kind else "tool"
+        status_icon = "✔" if success else "✖"
+        status_style = "success" if success else "error"
+          
+        title = Text.assemble(
+            (status_icon, status_style),
+            (tool_call_name, "tool"),
+            ("  ", "muted"),
+            (f"#{tool_call_id[:8]}", "muted"),
+        )
+        
+        blocks = []
+        primary_path: str | None = None
+        if isinstance(metadata, dict) and hasattr(metadata, "path"):
+            primary_path = metadata.get("path")
+        
+        if tool_call_name == "read_file" and success:
+            if primary_path:
+                start_line_no, code = self._extract_read_file_code(output)
+                
+                start_from = metadata.get("start_from")
+                end_from = metadata.get("end_from")
+                total_lines = metadata.get("total_lines")
+                
+                pl = self._guess_language(primary_path)
+                
+                header_parts = [get_relative_path_to_cwd(primary_path, self.cwd)]
+                header_parts.append(" 🔹 ")
+                
+                if start_from and end_from and total_lines:
+                    header_parts.append(f"lines from ${start_from}-{end_from} of {total_lines}")
+                
+                header = "".join(header_parts)
+                blocks.append(header)
+                blocks.append(Syntax(
+                    code,
+                    lexer=pl,
+                    theme="monokai",
+                    start_line=start_line_no,
+                    word_wrap=False
+                ))
+            else:
+                output_display = truncate_text(output, "", 240)
+                blocks.append(
+                    Syntax(
+                        code=output_display,
+                        lexer="text",
+                        theme="monokai",
+                        word_wrap=False
+                    )
+                )
+                
+        if truncated:
+            blocks.append(
+                Text("note: tool output was trucated", style="warning")
+            )
 
+        panel = Panel(
+            Group(
+                *blocks
+            ),
+            title=title,
+            title_align="left",
+            subtitle=Text("Done" if success else "Failed", style=status_style),
+            subtitle_align="right",
+            padding=(1, 2),
+            box=box.ROUNDED,
+            border_style=border_style,
+        )
+        
+        self.console.print(panel)
+    
+    
     def log_error(self, message: str, details: dict[str, Any]):
         self.console.print(message, style="error")

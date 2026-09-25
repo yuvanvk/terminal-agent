@@ -18,6 +18,16 @@ class CLI:
             self.agent = agent
             return await self._process_message(message)
         
+    def _get_tool_kind(self, tool_call_name: str) -> str:
+        tool_kind = None
+        tool = self.agent._tool_registry.get(tool_call_name)
+        if not tool:
+            tool_kind = None
+
+        tool_kind = tool.kind.value
+
+        return tool_kind
+        
     async def _process_message(self, message: str) -> str | None:
         if not self.agent:
             return None
@@ -26,7 +36,6 @@ class CLI:
         final_response: str | None = None
 
         async for event in self.agent.run(message=message):
-            print(event)
             if event.type == AgentEventType.TEXT_DELTA:
                 if self.agent_streaming is False:
                     self.agent_streaming = True
@@ -45,19 +54,26 @@ class CLI:
                 self.tui.log_error(message=message, details=details or {})
             elif event.type == AgentEventType.TOOL_CALL_START:
                 tool_name = event.data.get("name", "unknown")
-                tool = self.agent._tool_registry.get(tool_name)
-                tool_kind = None
-                if not tool:
-                    tool_kind = None
+                
                 
                 self.tui.tool_call_start(
                     tool_call_id=event.data.get("tool_call_id"),
                     tool_call_name=tool_name,
-                    tool_kind=tool_kind,
+                    tool_kind=self._get_tool_kind(tool_name),
                     args=event.data.get("arguments", {})
                 )
             elif event.type == AgentEventType.TOOL_CALL_COMPLETE:
-                pass
+                tool_name = event.data.get("name", "unknown")
+                self.tui.tool_call_complete(
+                    tool_call_id=event.data.get("tool_call_id"),
+                    tool_call_name=tool_name,
+                    tool_kind=self._get_tool_kind(tool_name),
+                    success=event.data.get("success", False),
+                    output=event.data.get("output", ""),
+                    metadata=event.data.get("metadata"),
+                    error=event.data.get("error"),
+                    truncated=event.data.get("truncated", False)
+                )
         
         return final_response
         
