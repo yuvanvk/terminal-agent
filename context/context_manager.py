@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from client.response import ToolCall
+from config.config import Config
 from prompts.system import get_system_prompt
 from utils.token import count_tokens
 
@@ -29,9 +31,9 @@ class Message:
             
         
 class ContextManager:
-    def __init__(self):
+    def __init__(self, config: Config):
         self._system_prompt = get_system_prompt()
-        self._model = "inclusionai/ling-3.0-flash-fin:free"
+        self._model = config.model_name
         self._messages: list[Message]= []
         
     def add_user_message(self, content: str) -> None:
@@ -43,11 +45,12 @@ class ContextManager:
             
         self._messages.append(message)
         
-    def add_assistant_message(self, content: str) -> None:
+    def add_assistant_message(self, content: str, tool_calls: list[dict[str, Any]] | None = None) -> None:
         message = Message(
             role="assistant",
             content=content or "",
-            token_count=count_tokens(content or "", self._model)
+            token_count=count_tokens(content or "", self._model),
+            tool_calls=tool_calls or []
         )
             
         self._messages.append(message)

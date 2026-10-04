@@ -31,6 +31,19 @@ class TUI:
         self.agent_is_streaming = False
         self.cwd = Path.cwd()
         self._tool_args_by_call_id: dict[str, dict[str, Any]] = {}
+        
+    def print_welcome(self, title: str, lines: list[str]) -> None:
+        body = "\n".join(lines)
+        self.console.print(
+            Panel(
+                Text(body, style="code"),
+                title=Text(title, style="highlight"),
+                title_align="left",
+                border_style="border",
+                box=box.ROUNDED,
+                padding=(1, 2),
+            )
+        )
 
     def begin_agent(self) -> None:
         self.agent_is_streaming = True

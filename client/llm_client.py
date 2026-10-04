@@ -13,20 +13,21 @@ from client.response import (
     TokenUsage,
     parse_tool_call_arguments,
 )
+from config.config import Config
 
 load_dotenv()
 
 class LLMClient:
-    def __init__(self) -> None:
+    def __init__(self, config: Config) -> None:
+        self.config = config
         self._client: AsyncOpenAI | None = None
-        self.api_key: str = os.getenv('OPENROUTER_API_KEY')
         self._max_retries: int = 3
 
     async def get_client(self) -> AsyncOpenAI:
         if self._client is None:
             self._client = AsyncOpenAI(
-                api_key=self.api_key,
-                base_url="https://openrouter.ai/api/v1"
+                api_key=self.config.api_key,
+                base_url=self.config.base_url
             )
             
         return self._client
@@ -64,7 +65,7 @@ class LLMClient:
         client = await self.get_client()
         
         kwargs = {
-            "model": "inclusionai/ling-3.0-flash-fin:free",
+            "model": self.config.model_name,
             "stream": stream,
             "messages": messages,
         }

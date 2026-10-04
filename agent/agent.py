@@ -7,14 +7,16 @@ from typing import Self
 from agent.events import AgentEvent, AgentEventType
 from client.llm_client import LLMClient
 from client.response import StreamEventType, ToolCall, ToolCallMessage
+from config.config import Config
 from context.context_manager import ContextManager
 from tools.registry import create_default_registry
 
 
 class Agent:
-    def __init__(self):
-        self.client = LLMClient()
-        self._context_manager = ContextManager()
+    def __init__(self, config: Config):
+        self.config = config
+        self.client = LLMClient(config=config)
+        self._context_manager = ContextManager(config=config)
         self._tool_registry = create_default_registry()
 
     async def run(self, message: str):
@@ -52,7 +54,21 @@ class Agent:
                     tool_calls.append(event.tool_call)
 
         if full_response:
-            self._context_manager.add_assistant_message(content=full_response)
+            self._context_manager.add_assistant_message(
+                content=full_response or None,
+                tool_calls=[
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.name,
+                            "arguments": tc.arguments
+                        }
+                    }
+                    for tc in tool_calls
+                ]
+                if tool_calls else None
+            )
             yield AgentEvent.text_complete(content=full_response)
         
         tool_calls_results: list[ToolCallMessage] = []
