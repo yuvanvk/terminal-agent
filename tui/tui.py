@@ -10,6 +10,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
+from config.config import Config
 from tui.agent_theme import AGENT_THEME
 from utils.path import get_relative_path_to_cwd
 from utils.token import truncate_text
@@ -26,10 +27,10 @@ def get_console():
 
 
 class TUI:
-    def __init__(self, console: Console):
+    def __init__(self, console: Console, config: Config):
         self.console = console or get_console()
         self.agent_is_streaming = False
-        self.cwd = Path.cwd()
+        self.cwd = config.cwd
         self._tool_args_by_call_id: dict[str, dict[str, Any]] = {}
         
     def print_welcome(self, title: str, lines: list[str]) -> None:

@@ -16,7 +16,7 @@ class CLI:
     def __init__(self, config: Config):
         self.config = config
         self.agent: Agent | None = None
-        self.tui = TUI(console=get_console())
+        self.tui = TUI(console=get_console(), config=config)
     
     async def run_single(self, message: str) -> str | None:
         async with Agent(config=self.config) as agent:
@@ -51,7 +51,7 @@ class CLI:
         
     def _get_tool_kind(self, tool_call_name: str) -> str:
         tool_kind = None
-        tool = self.agent._tool_registry.get(tool_call_name)
+        tool = self.agent.session._tool_registry.get(tool_call_name)
         if not tool:
             tool_kind = None
 
