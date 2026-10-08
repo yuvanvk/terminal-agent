@@ -67,6 +67,7 @@ class TUI:
             "write_file": ["path", "create_directories", "content"],
             "edit_file": ["path", "replace_all", "old_string", "new_string"],
             "shell": ["command", "timeout", "cwd"],
+            "grep": ["path", "case_insensitive", "pattern"],
         }
 
         ordered: list[tuple[str, Any]] = []
@@ -91,11 +92,13 @@ class TUI:
         for key, value in self._ordered_arguments(
             tool_call_name=tool_call_name, args=args
         ):
-            if isinstance(value, str):
-                if key in { "content", "old_string", "new_string"}:
+            if isinstance(value, str) and key in { "content", "old_string", "new_string"}:
                     line_count = len(value.splitlines()) or 0
                     byte_count = len(value.encode('utf-8', errors="replace"))
                     value = f"<{line_count} lines ⏺ {byte_count} bytes>"
+                
+            if isinstance(value, bool):
+                value = str(value)
 
             table.add_row(key, value)
 
@@ -288,7 +291,7 @@ class TUI:
                 )
             )
             
-        elif tool_call_name == "shell":
+        elif tool_call_name == "shell" and success:
             command = args.get("command")
             
             if isinstance(command, str) and command.strip():
@@ -305,6 +308,73 @@ class TUI:
                     word_wrap=True,
                 )
             )
+        
+        elif tool_call_name == "list_dir" and success:
+            entries = metadata.get("entries")
+            path = metadata.get("path")
+            summary = []
+            if isinstance(path, str):
+                summary.append(path)
+
+            if isinstance(entries, int):
+                summary.append(f"{entries} entries")
+
+            if summary:
+                blocks.append(Text(" • ".join(summary), style="muted"))
+
+            output_display = truncate_text(
+                output,
+                self.config.model_name,
+                self.max_block_tokens,
+            )
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+            
+        elif tool_call_name == "grep" and success:
+            matches = metadata.get("matches")
+            files_searched = metadata.get("files_searched")
+            summary = []
+            if isinstance(matches, int):
+                summary.append(f"{matches} matches")
+            if isinstance(files_searched, int):
+                summary.append(f"searched {files_searched} files")
+
+            if summary:
+                blocks.append(Text(" • ".join(summary), style="muted"))
+
+            output_display = truncate_text(
+                output, self.config.model_name, self._max_block_tokens
+            )
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+            
+        if error and not success:
+            blocks.append(Text(error, style="error"))
+            
+            output_display = truncate_text(output, self.config.model_name, self.max_block_tokens)
+            if output_display.strip():
+                blocks.append(
+                    Syntax(
+                        output_display,
+                        "text",
+                        theme="monokai",
+                        word_wrap=True,
+                    )
+                )
+            else:
+                blocks.append(Text("(no output)", style="muted"))
 
         if truncated:
             blocks.append(
