@@ -5,7 +5,7 @@ def resolve_path(base: str | Path, path: str | Path):
     path = Path(path)
     if path.is_absolute():
         return path.resolve()
-    
+
     return Path(base).resolve() / path
 
 
@@ -21,7 +21,7 @@ def get_relative_path_to_cwd(path: Path, cwd: str) -> str:
             return str(rel_to_cwd)
         except ValueError:
             pass
-        
+
     return str(p)
 
 
@@ -32,3 +32,9 @@ def is_binary_path(path: str | Path) -> bool:
             return b"\x00" in chunk
     except OSError:
         return False
+
+def ensure_parent_directory(path: str | Path) -> Path:
+    path = Path(path)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path

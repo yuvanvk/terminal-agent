@@ -29,10 +29,12 @@ def get_console():
 class TUI:
     def __init__(self, console: Console, config: Config):
         self.console = console or get_console()
+        self.config = config
         self.agent_is_streaming = False
         self.cwd = config.cwd
         self._tool_args_by_call_id: dict[str, dict[str, Any]] = {}
-        
+        self.max_block_tokens = 240
+
     def print_welcome(self, title: str, lines: list[str]) -> None:
         body = "\n".join(lines)
         self.console.print(
@@ -62,6 +64,9 @@ class TUI:
     def _ordered_arguments(self, tool_call_name: str, args: dict[str, Any]):
         _PREFFERED_ORDER = {
             "read_file": ["path", "offset", "limit"],
+            "write_file": ["path", "create_directories", "content"],
+            "edit_file": ["path", "replace_all", "old_string", "new_string"],
+            "shell": ["command", "timeout", "cwd"],
         }
 
         ordered: list[tuple[str, Any]] = []
@@ -86,6 +91,12 @@ class TUI:
         for key, value in self._ordered_arguments(
             tool_call_name=tool_call_name, args=args
         ):
+            if isinstance(value, str):
+                if key in { "content", "old_string", "new_string"}:
+                    line_count = len(value.splitlines()) or 0
+                    byte_count = len(value.encode('utf-8', errors="replace"))
+                    value = f"<{line_count} lines ⏺ {byte_count} bytes>"
+
             table.add_row(key, value)
 
         return table
@@ -129,26 +140,26 @@ class TUI:
 
         if header:
             body = text[header.end(): ]
-        
+
         code_lines: list[str] = []
         start_line_no: int | None = None
-        
+
         for line in body.splitlines():
             m = re.match(r"^\s*(\d+)\|(.*)$", line)
             if m is None:
                 return None
-            
+
             line_no = m.group(1)
             code_line = m.group(2)
-            
+
             if start_line_no is None:
                 start_line_no = line_no
-            
+
             code_lines.append(code_line)
-            
+
         if start_line_no is None:
             return None
-        
+
         return start_line_no, "\n".join(code_lines)
 
     def tool_call_start(
@@ -191,7 +202,7 @@ class TUI:
         )
 
         self.console.print(panel)
-        
+
     def tool_call_complete(
         self,
         tool_call_id: str,
@@ -199,42 +210,45 @@ class TUI:
         tool_kind: str | None,
         success: bool,
         output: str,
+        diff: str | None,
         error: str | None,
+        exit_code: int | None,
         metadata: dict[str, Any],
         truncated: bool
     ):
         border_style = f"tool.{tool_kind}" if tool_kind else "tool"
         status_icon = "✔" if success else "✖"
         status_style = "success" if success else "error"
-          
+
         title = Text.assemble(
             (status_icon, status_style),
             (tool_call_name, "tool"),
             ("  ", "muted"),
             (f"#{tool_call_id[:8]}", "muted"),
         )
+        args = self._tool_args_by_call_id.get(tool_call_id, {})
         
         blocks = []
         primary_path: str | None = None
         if isinstance(metadata, dict) and hasattr(metadata, "path"):
             primary_path = metadata.get("path")
-        
+
         if tool_call_name == "read_file" and success:
             if primary_path:
                 start_line_no, code = self._extract_read_file_code(output)
-                
+
                 start_from = metadata.get("start_from")
                 end_from = metadata.get("end_from")
                 total_lines = metadata.get("total_lines")
-                
+
                 pl = self._guess_language(primary_path)
-                
+
                 header_parts = [get_relative_path_to_cwd(primary_path, self.cwd)]
-                header_parts.append(" 🔹 ")
-                
+                header_parts.append(" ⏺ ")
+
                 if start_from and end_from and total_lines:
                     header_parts.append(f"lines from ${start_from}-{end_from} of {total_lines}")
-                
+
                 header = "".join(header_parts)
                 blocks.append(header)
                 blocks.append(Syntax(
@@ -254,7 +268,44 @@ class TUI:
                         word_wrap=False
                     )
                 )
+
+        elif tool_call_name in {"write_file", "edit_file"} and success and diff:
+            output_line = output.strip() if output.strip() else "Completed"
+            blocks.append(Text(output_line, style="muted"))
+            diff_text = diff
+            diff_display = truncate_text(
+                diff_text,
+                self.config.model_name,
+                self.max_block_tokens
+            )
+
+            blocks.append(
+                Syntax(
+                    diff_display,
+                    "diff",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+            
+        elif tool_call_name == "shell":
+            command = args.get("command")
+            
+            if isinstance(command, str) and command.strip():
+                blocks.append(Text(f"$ {command}", style="muted"))
+            
+            if exit_code is not None:
+                blocks.append(Text(f"Exit code: {exit_code}", style="muted"))
                 
+            blocks.append(
+                Syntax(
+                    output,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+
         if truncated:
             blocks.append(
                 Text("note: tool output was trucated", style="warning")
@@ -272,9 +323,9 @@ class TUI:
             box=box.ROUNDED,
             border_style=border_style,
         )
-        
+
         self.console.print(panel)
-    
-    
+
+
     def log_error(self, message: str, details: dict[str, Any]):
         self.console.print(message, style="error")

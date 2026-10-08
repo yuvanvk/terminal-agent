@@ -9,6 +9,8 @@ from typing import Any
 from pydantic import BaseModel, ValidationError
 from pydantic.json_schema import model_json_schema
 
+from config.config import Config
+
 
 @dataclass
 class ToolInvocation:
@@ -16,18 +18,52 @@ class ToolInvocation:
     params: dict[str, Any]
 
 @dataclass
+class FileDiff:
+    path: Path
+    old_content: str
+    new_content: str
+
+    is_new_file: bool = False
+    is_deletion: bool = False
+
+    def to_diff(self) -> str:
+        import difflib
+
+        old_lines = self.old_content.splitlines(keepends=True)
+        new_lines = self.new_content.splitlines(keepends=True)
+
+        if old_lines and not old_lines[-1].endswith("\n"):
+            old_lines[-1] += "\n"
+        if new_lines and not new_lines[-1].endswith("\n"):
+            new_lines[-1] += "\n"
+
+        old_name = "/dev/null" if self.is_new_file else str(self.path)
+        new_name = "/dev/null" if self.is_deletion else str(self.path)
+
+        diff = difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=old_name,
+            tofile=new_name,
+        )
+
+        return "".join(diff)
+
+@dataclass
 class ToolResult:
     success: bool
     output: str
     error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
-    
+
     truncated: bool = False
-    
+    diff: FileDiff | None = None
+    exit_code: int | None = None
+
     def to_model_output(self) -> dict[str, Any]:
         if self.success:
             return self.output
-        
+
         return f"Error: {self.error}\n\nOutput:\n{self.output}"
 
     @classmethod
@@ -38,7 +74,7 @@ class ToolResult:
             error=None,
             **kwargs
         )
-        
+
     @classmethod
     def error_result(cls, error: str, output: str = "", **kwargs: Any) -> ToolResult:
         return cls(
@@ -47,7 +83,7 @@ class ToolResult:
             error=error,
             **kwargs
         )
-    
+
 @dataclass
 class ToolConfirmation:
     tool_name: str
@@ -68,6 +104,9 @@ class Tool(ABC):
     name: str = "Base tool"
     description: str = "Base tool"
     kind: ToolKind = ToolKind.READ
+    
+    def __init__(self, config: Config):
+        self.config = config
 
     @property
     def schema(self) -> dict[str, Any] | type[BaseModel]:
@@ -78,7 +117,7 @@ class Tool(ABC):
     @abstractmethod
     async def execute(self, invocation: ToolInvocation) -> ToolResult:
         pass
-    
+
     def validate_params(self, params: dict[str, Any] | type[BaseModel]) -> list[str]:
             schema = self.schema
             if isinstance(schema, type) and issubclass(schema, BaseModel):
@@ -93,32 +132,32 @@ class Tool(ABC):
                     return errors
                 except Exception as e:
                     return [str(e)]
-                
+
             return []
 
     def is_mutating(self) -> bool:
         return self.kind in {
-            ToolKind.WRITE, 
-            ToolKind.SHELL, 
-            ToolKind.NETWORK, 
+            ToolKind.WRITE,
+            ToolKind.SHELL,
+            ToolKind.NETWORK,
             ToolKind.MEMORY
         }
 
     async def get_confirmation(self, invocation: ToolInvocation) -> ToolConfirmation | None:
         if self.is_mutating() is False:
             return None
-        
+
         return ToolConfirmation(
             tool_name=self.name,
             description=self.description,
             params=invocation.params
         )
-        
+
     def to_openai_json(self) -> dict[str, Any]:
         schema = self.schema
         if isinstance(schema, type) and issubclass(schema, BaseModel):
             json_schema = model_json_schema(schema)
-            
+
             return {
                 "name": self.name,
                 "description": self.description,
@@ -128,18 +167,18 @@ class Tool(ABC):
                     "required": json_schema.get("required", []),
                 }
             }
-            
+
         if isinstance(schema, dict):
             result = {
                 "name": self.name,
                 "description": self.description,
             }
-            
+
             if "parameters" in schema:
                 result["parameters"] = schema["parameters"]
             else:
                 result["parameters"] = schema
-            
+
             return result
-        
+
         raise ValueError(f"Invalid schema type for tool {self.name}: {type(schema)}")

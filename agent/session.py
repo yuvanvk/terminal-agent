@@ -12,7 +12,7 @@ class Session:
         self.config = config
         self.client = LLMClient(config=config)
         self._context_manager = ContextManager(config=config)
-        self._tool_registry = create_default_registry()
+        self._tool_registry = create_default_registry(config=config)
         self.session_id = str(uuid.uuid4())
         self.created_at = datetime.now()
         self.updated_at = datetime.now()

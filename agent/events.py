@@ -13,41 +13,41 @@ class AgentEventType(str, Enum):
     AGENT_START = "agent_start"
     AGENT_END = "agent_end"
     AGENT_ERROR = "agent_error"
-    
+
     """Tool call events"""
     TOOL_CALL_START = "tool_call_start"
     TOOL_CALL_COMPLETE = "tool_call_complete"
-    
+
     """Textual Events"""
     TEXT_DELTA = "text_delta"
     TEXT_COMPLETE = "text_complete"
-            
+
 @dataclass
 class AgentEvent:
     type: AgentEventType
     data: dict[str, Any]
-    
+
     @classmethod
     def agent_start(cls, message: str) -> AgentEvent:
         return cls(
             type=AgentEventType.AGENT_START,
-            data={"message": message}        
+            data={"message": message}
         )
-    
+
     @classmethod
     def agent_end(cls, response: str, usage: TokenUsage | None = None) -> AgentEvent:
         return cls(
             type=AgentEventType.AGENT_END,
             data={"response": response, "usage": usage.__dict__ if usage else None }
         )
-        
+
     @classmethod
     def agent_error(cls, error: str, details: dict[str, Any]) -> AgentEvent:
         return cls(
             type=AgentEventType.AGENT_ERROR,
             data={ "error": error, "details": details or {} }
         )
-    
+
     @classmethod
     def text_delta(cls, content: str) -> AgentEvent:
         return cls(
@@ -61,7 +61,7 @@ class AgentEvent:
             type=AgentEventType.TEXT_COMPLETE,
             data={"content": content}
         )
-        
+
     @classmethod
     def tool_call_start(
         cls,
@@ -77,14 +77,14 @@ class AgentEvent:
                 "arguments": arguments
             }
         )
-        
+
     @classmethod
     def tool_call_complete(
         cls,
         tool_call_id: str,
         name: str,
-        result: ToolResult
-    ): 
+        result: ToolResult,
+    ):
         return cls(
             type=AgentEventType.TOOL_CALL_COMPLETE,
             data={
@@ -94,6 +94,8 @@ class AgentEvent:
                 "output": result.output,
                 "error": result.error,
                 "metadata": result.metadata,
-                "truncated": result.truncated
+                "diff": result.diff.to_diff() if result.diff else None,
+                "truncated": result.truncated,
+                "exit_code": result.exit_code
             }
         )
