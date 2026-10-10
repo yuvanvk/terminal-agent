@@ -67,7 +67,9 @@ class TUI:
             "write_file": ["path", "create_directories", "content"],
             "edit_file": ["path", "replace_all", "old_string", "new_string"],
             "shell": ["command", "timeout", "cwd"],
+            "list_dir": ["path", "include_hidden"],
             "grep": ["path", "case_insensitive", "pattern"],
+            "glob": ["path", "pattern"],
         }
 
         ordered: list[tuple[str, Any]] = []
@@ -92,11 +94,15 @@ class TUI:
         for key, value in self._ordered_arguments(
             tool_call_name=tool_call_name, args=args
         ):
-            if isinstance(value, str) and key in { "content", "old_string", "new_string"}:
-                    line_count = len(value.splitlines()) or 0
-                    byte_count = len(value.encode('utf-8', errors="replace"))
-                    value = f"<{line_count} lines ⏺ {byte_count} bytes>"
-                
+            if isinstance(value, str) and key in {
+                "content",
+                "old_string",
+                "new_string",
+            }:
+                line_count = len(value.splitlines()) or 0
+                byte_count = len(value.encode("utf-8", errors="replace"))
+                value = f"<{line_count} lines ⏺ {byte_count} bytes>"
+
             if isinstance(value, bool):
                 value = str(value)
 
@@ -142,7 +148,7 @@ class TUI:
         header = re.match(r"^Showing lines (\d+)-(\d+) of (\d+)\n\n", text)
 
         if header:
-            body = text[header.end(): ]
+            body = text[header.end() :]
 
         code_lines: list[str] = []
         start_line_no: int | None = None
@@ -190,11 +196,13 @@ class TUI:
                 display_args[key] = get_relative_path_to_cwd(path=value, cwd=self.cwd)
 
         panel = Panel(
-            renderable=self._render_args_table(
-                tool_call_name=tool_call_name, args=display_args
-            )
-            if display_args
-            else Text("(no args provided)", style="muted"),
+            renderable=(
+                self._render_args_table(
+                    tool_call_name=tool_call_name, args=display_args
+                )
+                if display_args
+                else Text("(no args provided)", style="muted")
+            ),
             title=title,
             title_align="left",
             subtitle=Text("running", style="muted"),
@@ -217,7 +225,7 @@ class TUI:
         error: str | None,
         exit_code: int | None,
         metadata: dict[str, Any],
-        truncated: bool
+        truncated: bool,
     ):
         border_style = f"tool.{tool_kind}" if tool_kind else "tool"
         status_icon = "✔" if success else "✖"
@@ -230,7 +238,7 @@ class TUI:
             (f"#{tool_call_id[:8]}", "muted"),
         )
         args = self._tool_args_by_call_id.get(tool_call_id, {})
-        
+
         blocks = []
         primary_path: str | None = None
         if isinstance(metadata, dict) and hasattr(metadata, "path"):
@@ -250,17 +258,21 @@ class TUI:
                 header_parts.append(" ⏺ ")
 
                 if start_from and end_from and total_lines:
-                    header_parts.append(f"lines from ${start_from}-{end_from} of {total_lines}")
+                    header_parts.append(
+                        f"lines from ${start_from}-{end_from} of {total_lines}"
+                    )
 
                 header = "".join(header_parts)
                 blocks.append(header)
-                blocks.append(Syntax(
-                    code,
-                    lexer=pl,
-                    theme="monokai",
-                    start_line=start_line_no,
-                    word_wrap=False
-                ))
+                blocks.append(
+                    Syntax(
+                        code,
+                        lexer=pl,
+                        theme="monokai",
+                        start_line=start_line_no,
+                        word_wrap=False,
+                    )
+                )
             else:
                 output_display = truncate_text(output, "", 240)
                 blocks.append(
@@ -268,7 +280,7 @@ class TUI:
                         code=output_display,
                         lexer="text",
                         theme="monokai",
-                        word_wrap=False
+                        word_wrap=False,
                     )
                 )
 
@@ -277,9 +289,7 @@ class TUI:
             blocks.append(Text(output_line, style="muted"))
             diff_text = diff
             diff_display = truncate_text(
-                diff_text,
-                self.config.model_name,
-                self.max_block_tokens
+                diff_text, self.config.model_name, self.max_block_tokens
             )
 
             blocks.append(
@@ -290,16 +300,16 @@ class TUI:
                     word_wrap=True,
                 )
             )
-            
+
         elif tool_call_name == "shell" and success:
             command = args.get("command")
-            
+
             if isinstance(command, str) and command.strip():
                 blocks.append(Text(f"$ {command}", style="muted"))
-            
+
             if exit_code is not None:
                 blocks.append(Text(f"Exit code: {exit_code}", style="muted"))
-                
+
             blocks.append(
                 Syntax(
                     output,
@@ -308,7 +318,7 @@ class TUI:
                     word_wrap=True,
                 )
             )
-        
+
         elif tool_call_name == "list_dir" and success:
             entries = metadata.get("entries")
             path = metadata.get("path")
@@ -335,7 +345,7 @@ class TUI:
                     word_wrap=True,
                 )
             )
-            
+
         elif tool_call_name == "grep" and success:
             matches = metadata.get("matches")
             files_searched = metadata.get("files_searched")
@@ -359,11 +369,27 @@ class TUI:
                     word_wrap=True,
                 )
             )
-            
+
+        elif tool_call_name == "glob" and success:
+
+            output_display = truncate_text(
+                output, self.config.model_name, self.max_block_tokens
+            )
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+
         if error and not success:
             blocks.append(Text(error, style="error"))
-            
-            output_display = truncate_text(output, self.config.model_name, self.max_block_tokens)
+
+            output_display = truncate_text(
+                output, self.config.model_name, self.max_block_tokens
+            )
             if output_display.strip():
                 blocks.append(
                     Syntax(
@@ -377,14 +403,10 @@ class TUI:
                 blocks.append(Text("(no output)", style="muted"))
 
         if truncated:
-            blocks.append(
-                Text("note: tool output was trucated", style="warning")
-            )
+            blocks.append(Text("note: tool output was trucated", style="warning"))
 
         panel = Panel(
-            Group(
-                *blocks
-            ),
+            Group(*blocks),
             title=title,
             title_align="left",
             subtitle=Text("Done" if success else "Failed", style=status_style),
@@ -395,7 +417,6 @@ class TUI:
         )
 
         self.console.print(panel)
-
 
     def log_error(self, message: str, details: dict[str, Any]):
         self.console.print(message, style="error")

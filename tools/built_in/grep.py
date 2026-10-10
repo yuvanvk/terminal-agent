@@ -21,7 +21,7 @@ class GrepParams(BaseModel):
 
 class GrepTool(Tool):
     name = "grep"
-    description = ""
+    description = "Search for a regex pattern in file contents. Returns matching lines with file paths and line numbers."
     kind = ToolKind.READ
 
     schema = GrepParams
