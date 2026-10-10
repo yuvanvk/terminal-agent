@@ -103,7 +103,7 @@ class TUI:
                 byte_count = len(value.encode("utf-8", errors="replace"))
                 value = f"<{line_count} lines ⏺ {byte_count} bytes>"
 
-            if isinstance(value, bool):
+            if not isinstance(value, str):
                 value = str(value)
 
             table.add_row(key, value)
@@ -383,6 +383,81 @@ class TUI:
                     word_wrap=True,
                 )
             )
+
+        elif tool_call_name == "web_search" and success:
+            results = metadata.get("results")
+            query = metadata.get("query")
+
+            summary = []
+            if isinstance(query, str):
+                summary.append(f"For query: {query}")
+            if isinstance(results, int):
+                summary.append(f"{results} results")
+
+            if summary:
+                blocks.append(Text(" • ".join(summary), style="muted"))
+
+            output_display = truncate_text(
+                output, self.config.model_name, self.max_block_tokens
+            )
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+        elif tool_call_name == "web_fetch" and success:
+            status_code = metadata.get("status_code")
+            content_length = metadata.get("content_length")
+            url = args.get("url")
+            summary = []
+            if isinstance(status_code, int):
+                summary.append(f"Status Code: {status_code}")
+            if isinstance(content_length, int):
+                summary.append(f"Content Length: {content_length} bytes")
+            if isinstance(url, str):
+                summary.append(f"URL: {url}")
+
+            if summary:
+                blocks.append(Text(" • ".join(summary), style="muted"))
+
+            output_display = truncate_text(
+                output, self.config.model_name, self.max_block_tokens
+            )
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+
+        elif tool_call_name == "todos" and success:
+            output_display = truncate_text(
+                output, self.config.model_name, self.max_block_tokens
+            )
+
+            todo_items = [
+                match.groups()
+                for line in output_display.splitlines()
+                if (match := re.match(r"\s*\[([^\]]+)\]\s*-\s*(.*)", line))
+            ]
+            if todo_items:
+                table = Table(
+                    title=Text("Todos", style="highlight"),
+                    box=box.SIMPLE,
+                    expand=True,
+                )
+                table.add_column("ID", style="muted", no_wrap=True)
+                table.add_column("Task", overflow="fold")
+                for todo_id, content in todo_items:
+                    table.add_row(Text(todo_id, style="muted"), Text(content))
+                blocks.append(table)
+            elif output_display.strip():
+                blocks.append(Text(output_display))
 
         if error and not success:
             blocks.append(Text(error, style="error"))
