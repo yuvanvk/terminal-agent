@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from client.response import ToolCall
 from config.config import Config
 from prompts.system import get_system_prompt
+from tools.base import Tool
 from utils.token import count_tokens
 
 
@@ -31,8 +31,8 @@ class Message:
             
         
 class ContextManager:
-    def __init__(self, config: Config):
-        self._system_prompt = get_system_prompt()
+    def __init__(self, config: Config, user_memory: str | None = None, tools: list[Tool] | None = None):
+        self._system_prompt = get_system_prompt(config=config, user_memory=user_memory, tools=tools)
         self._model = config.model_name
         self._messages: list[Message]= []
         

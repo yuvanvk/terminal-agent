@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import tomli
-from platformdirs import user_config_dir
+from platformdirs import user_config_dir, user_data_dir
 
 from utils.errors import ConfigError
 
@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 def get_config_dir():
     return Path(user_config_dir(appname="terminal-agent"))
+
+def get_data_dir() -> Path:
+    return Path(user_data_dir("terminal-agent"))
 
 def get_system_config_path() -> Path:
     return get_config_dir() / CONFIG_FILE_NAME
