@@ -7,6 +7,7 @@ from tools.built_in.shell import ShellTool
 from tools.built_in.todo import TodosTool
 from tools.built_in.web_fetch import WebFetchTool
 from tools.built_in.web_search import WebSearchTool
+from tools.sub_agent import CODEBASE_INVESTIGATOR
 
 from .built_in.read_file import ReadFileTool
 from .built_in.write_file import WriteFileTool
@@ -39,3 +40,4 @@ def get_all_built_tools() -> list[type]:
         TodosTool,
         MemoryTool
     ]
+    

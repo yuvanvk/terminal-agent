@@ -5,13 +5,15 @@ from typing import Any
 from config.config import Config
 from tools import get_all_built_tools
 from tools.base import Tool, ToolInvocation, ToolResult
+from tools.sub_agent import SubAgentTool, get_default_subagent_definitions
 
 logger = logging.getLogger(__name__)
 
 
 class ToolRegistry:
-    def __init__(self):
+    def __init__(self, config: Config):
         self._tools: dict[str, Tool] = {}
+        self.config = config
         
     def register(self, tool: Tool) -> None:
         if tool in self._tools:
@@ -28,8 +30,16 @@ class ToolRegistry:
     
         
     def get_tools(self) -> list[Tool]:
-        return list(self._tools.values())
+        tools: list[Tool] = []
+        
+        for tool in self._tools.values():
+            tools.append(tool)
+        
+        if self.config.allowed_tools:
+            allowed_set = set(self.config.allowed_tools)
+            tools = [t for t in tools if t.name in allowed_set]
 
+        return tools
     
     def get(self, name) -> Tool | None:
         if name in self._tools:
@@ -68,9 +78,12 @@ class ToolRegistry:
         return await tool.execute(invocation=invocation)
 
 def create_default_registry(config: Config):
-    registry = ToolRegistry()
+    registry = ToolRegistry(config=config)
     
     for tool_class in get_all_built_tools():
         registry.register(tool_class(config))
+        
+    for sub_agent in get_default_subagent_definitions():
+        registry.register(SubAgentTool(config=config, definition=sub_agent))
         
     return registry
