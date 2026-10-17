@@ -35,6 +35,16 @@ class Agent:
             full_response = ""
             tool_calls: list[ToolCall] = []
             
+            if self.session._context_manager.needs_compression():
+                summary, usage = await self.session.chat_compactor.compress(
+                    context_manager=self.session._context_manager
+                )
+                
+                if summary:
+                    self.session._context_manager.replace_with_summary(summary=summary)
+                    self.session._context_manager.set_latest_usage(usage=usage)
+                    self.session._context_manager.add_usage(usage=usage)
+            
             async for event in self.session.client.chat_completion(
                 messages=self.session._context_manager.get_messages(),
                 tools=self.session._tool_registry.get_schemas(),
@@ -51,6 +61,9 @@ class Agent:
                 elif event.type == StreamEventType.TOOL_CALL_COMPLETE:
                     if event.tool_call:
                         tool_calls.append(event.tool_call)
+                        
+                elif event.type == StreamEventType.MESSAGE_COMPLETE:
+                    usage = event.usage
 
             if full_response:
                 self.session._context_manager.add_assistant_message(
@@ -71,7 +84,13 @@ class Agent:
                 yield AgentEvent.text_complete(content=full_response)
         
             if not tool_calls:
+                if usage:
+                    self.session._context_manager.set_latest_usage(usage=usage)
+                    self.session._context_manager.add_usage(usage=usage)
+                
+                self.session._context_manager.prune_tool_outputs()
                 return
+            
             tool_calls_results: list[ToolCallMessage] = []
             
             if tool_calls:
@@ -108,6 +127,13 @@ class Agent:
                     tool_call_id=tool_call_result.tool_call_id, 
                     content=tool_call_result.content
                 )
+            
+            if usage:
+                self.session._context_manager.set_latest_usage(usage=usage)
+                self.session._context_manager.add_usage(usage=usage)
+            
+            self.session._context_manager.prune_tool_outputs()
+        yield AgentEvent.agent_error(f"Maxiumum turns ({max_turns})")
 
     async def __aenter__(self) -> Self:
         await self.session.initialise()
