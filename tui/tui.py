@@ -488,6 +488,23 @@ class TUI:
                     word_wrap=True,
                 )
             )
+        elif tool_kind == "mcp" and success:
+            output_display = truncate_text(
+                output,
+                self.config.model_name,
+                self.max_block_tokens,
+            )
+            if output_display.strip():
+                blocks.append(
+                    Syntax(
+                        output_display,
+                        "text",
+                        theme="monokai",
+                        word_wrap=True,
+                    )
+                )
+            else:
+                blocks.append(Text("(no output)", style="muted"))
 
         if error and not success:
             blocks.append(Text(error, style="error"))

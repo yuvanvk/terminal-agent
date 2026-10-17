@@ -10,7 +10,7 @@ from tools.base import Tool
 from tools.registry import ToolRegistry
 
 
-class ToolDiscoveryMangaer:
+class ToolDiscoveryManager:
     def __init__(self, config: Config, registry: ToolRegistry):
         self.config = config
         self.registry = registry

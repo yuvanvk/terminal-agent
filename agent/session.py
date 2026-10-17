@@ -6,6 +6,8 @@ from client.llm_client import LLMClient
 from config.config import Config
 from config.loader import get_data_dir
 from context.context_manager import ContextManager
+from tools.discovery import ToolDiscoveryManager
+from tools.mcp.manager import MCPManager
 from tools.registry import create_default_registry
 
 
@@ -14,16 +16,29 @@ class Session:
         self.config = config
         self._tool_registry = create_default_registry(config=config)
         self.client = LLMClient(config=config)
-        self._context_manager = ContextManager(
-            config=config,
-            tools=self._tool_registry.get_tools(),
-            user_memory=self._load_memory(),
-        )
+        self._context_manager: ContextManager | None = None
         self.session_id = str(uuid.uuid4())
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
+        self.tool_discovery_manager = ToolDiscoveryManager(
+            config=self.config,
+            registry=self._tool_registry 
+        )
+        
+        self.mcp_manager = MCPManager(config=self.config)
 
         self._turn_count = 0
+        
+    async def initialise(self):
+        await self.mcp_manager.initialize()
+        self.mcp_manager.register_tools(self._tool_registry)
+        
+        self.tool_discovery_manager.discover_all()
+        self._context_manager = ContextManager(
+            config=self.config,
+            tools=self._tool_registry.get_tools(),
+            user_memory=self._load_memory(),
+        )
 
     def _load_memory(self):
         data_path = get_data_dir()

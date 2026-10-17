@@ -8,6 +8,7 @@ dependencies = [
     "click>=8.5.0",
     "ddgs>=9.16.0",
     "dotenv>=0.9.9",
+    "fastmcp>=4.1.0",
     "httpx>=0.28.1",
     "openai>=3.6.0",
     "platformdirs>=4.12.3",
