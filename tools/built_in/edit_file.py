@@ -2,7 +2,14 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from tools.base import FileDiff, Tool, ToolKind, ToolResult
+from tools.base import (
+    FileDiff,
+    Tool,
+    ToolConfirmation,
+    ToolInvocation,
+    ToolKind,
+    ToolResult,
+)
 from utils.path import ensure_parent_directory, resolve_path
 
 
@@ -38,6 +45,53 @@ class EditFileTool(Tool):
     )
     schema = EditFileParams
     kind = ToolKind.WRITE
+    
+    async def get_confirmation(
+        self,
+        invocation: ToolInvocation,
+    ) -> ToolConfirmation | None:
+        params = EditFileParams(**invocation.params)
+        path = resolve_path(invocation.cwd, params.path)
+
+        is_new_file = not path.exists()
+
+        if is_new_file:
+            diff = FileDiff(
+                path=path,
+                old_content="",
+                new_content=params.new_string,
+                is_new_file=True,
+            )
+
+            return ToolConfirmation(
+                tool_name=self.name,
+                params=invocation.params,
+                description=f"Create new file: {path}",
+                diff=diff,
+                affected_paths=[path],
+            )
+
+        old_content = path.read_text(encoding="utf-8")
+
+        if params.replace_all:
+            new_content = old_content.replace(params.old_string, params.new_string)
+        else:
+            new_content = old_content.replace(params.old_string, params.new_string, 1)
+
+        diff = FileDiff(
+            path=path,
+            old_content=old_content,
+            new_content=new_content,
+        )
+
+        return ToolConfirmation(
+            tool_name=self.name,
+            params=invocation.params,
+            description=f"Edit file: {path}",
+            diff=diff,
+            affected_paths=[path],
+        )
+
 
     async def execute(self, invocation) -> ToolResult:
         params = EditFileParams(**invocation.params)

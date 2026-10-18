@@ -19,16 +19,13 @@ class Message:
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        result: dict[str, Any] = {"role": self.role}
+        result: dict[str, Any] = {"role": self.role, "content": self.content}
 
         if self.tool_call_id:
             result["tool_call_id"] = self.tool_call_id
 
         if self.tool_calls:
-            result["tools_calls"] = self.tool_calls
-
-        if self.content:
-            result["content"] = self.content
+            result["tool_calls"] = self.tool_calls
 
         return result
 

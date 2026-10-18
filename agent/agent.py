@@ -1,18 +1,25 @@
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+import json
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Self
 
 from agent.events import AgentEvent, AgentEventType
 from agent.session import Session
 from client.response import StreamEventType, ToolCall, ToolCallMessage
 from config.config import Config
+from tools.base import ToolConfirmation
 
 
 class Agent:
-    def __init__(self, config: Config):
+    def __init__(
+        self, 
+        config: Config, 
+        confirmation_cb: Callable[[ToolConfirmation], bool] | None = None
+    ):
         self.config = config
         self.session = Session(config=config)
+        self.session.approval_manager.confirmation_cb = confirmation_cb
 
     async def run(self, message: str):
         final_response = ""
@@ -65,22 +72,23 @@ class Agent:
                 elif event.type == StreamEventType.MESSAGE_COMPLETE:
                     usage = event.usage
 
-            if full_response:
+            if full_response or tool_calls:
                 self.session._context_manager.add_assistant_message(
-                    content=full_response or None,
+                    content=full_response,
                     tool_calls=[
                         {
                             "id": tc.id,
                             "type": "function",
                             "function": {
                                 "name": tc.name,
-                                "arguments": tc.arguments
+                                "arguments": json.dumps(tc.arguments)
                             }
                         }
                         for tc in tool_calls
                     ]
                     if tool_calls else None
                 )
+            if full_response:
                 yield AgentEvent.text_complete(content=full_response)
         
             if not tool_calls:
@@ -105,7 +113,8 @@ class Agent:
                     result = await self.session._tool_registry.invoke(
                         tool_call.name, 
                         params=tool_call.arguments, 
-                        cwd=self.config.cwd
+                        cwd=self.config.cwd,
+                        approval_manager=self.session.approval_manager
                     )
                     
                     yield AgentEvent.tool_call_complete(

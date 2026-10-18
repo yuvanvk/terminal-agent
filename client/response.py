@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from json import JSONDecodeError, loads
 from typing import Any
@@ -46,7 +46,7 @@ class ToolCallDelta:
 class ToolCall:
     id: str
     name: str = ""
-    arguments: str = ""    
+    arguments: dict[str, Any] = field(default_factory=dict)
     
 @dataclass
 class ToolCallMessage:
@@ -104,7 +104,7 @@ class StreamEvent:
         cls,
         tool_call_id: str,
         tool_call_name: str,
-        arguments: str
+        arguments: dict[str, Any]
     ):
         return cls(
             type=StreamEventType.TOOL_CALL_COMPLETE,

@@ -110,6 +110,7 @@ class LLMClient:
                     type=StreamEventType.ERROR,
                     error=f"API Error: {e}"
                 )
+                return
         return
         
     async def _get_response(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,15 @@ class ShellEnvironmentPolicy(BaseModel):
     ignore_default_excludes: bool = False
     exclude_patterns: list[str] = Field(default_factory=lambda: ["*KEY*", "*TOKEN*", "*SECRET*"])
     set_vars: dict[str, str] = Field(default_factory=dict)
+    
+class ApprovalPolicy(str, Enum):
+    ON_REQUEST = "on-request"
+    ON_FAILURE = "on-failure"
+    AUTO = "auto"
+    AUTO_EDIT = "auto-edut"
+    NEVER = "never"
+    YOLO = "yolo"
+    
     
 class MCPServerConfig(BaseModel):
     enabled: bool = True
@@ -56,6 +66,7 @@ class Config(BaseModel):
         None,
         description="If set, only these tools will be available to the agent"
     )
+    approval: ApprovalPolicy = ApprovalPolicy.ON_REQUEST
     
     developer_instructions: str | None = None
     user_instructions: str | None = None

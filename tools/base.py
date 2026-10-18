@@ -89,6 +89,11 @@ class ToolConfirmation:
     tool_name: str
     description: str
     params: dict[str, Any]
+    
+    diff: FileDiff | None = None
+    command: str | None = None
+    affected_paths: list[Path] = field(default_factory=list)
+    is_dangerous: bool = False
 
 
 class ToolKind(str, Enum):
@@ -135,7 +140,7 @@ class Tool(ABC):
 
             return []
 
-    def is_mutating(self) -> bool:
+    def is_mutating(self, params: dict[str, Any]) -> bool:
         return self.kind in {
             ToolKind.WRITE,
             ToolKind.SHELL,
@@ -144,7 +149,7 @@ class Tool(ABC):
         }
 
     async def get_confirmation(self, invocation: ToolInvocation) -> ToolConfirmation | None:
-        if self.is_mutating() is False:
+        if self.is_mutating(invocation.params) is False:
             return None
 
         return ToolConfirmation(
