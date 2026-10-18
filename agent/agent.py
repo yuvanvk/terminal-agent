@@ -22,6 +22,7 @@ class Agent:
         self.session.approval_manager.confirmation_cb = confirmation_cb
 
     async def run(self, message: str):
+        await self.session.hook_system.trigger_before_agent(user_message=message)
         final_response = ""
         yield AgentEvent.agent_start(message=message)
         self.session._context_manager.add_user_message(content=message)
@@ -31,7 +32,7 @@ class Agent:
                 final_response = event.data.get("content", "")
 
             yield event
-
+        await self.session.hook_system.trigger_after_agent(user_message=message, agent_response=final_response)
         yield AgentEvent.agent_end(response=final_response)
 
     async def _agent_loop(self) -> AsyncGenerator[AgentEvent, None]:
@@ -114,7 +115,8 @@ class Agent:
                         tool_call.name, 
                         params=tool_call.arguments, 
                         cwd=self.config.cwd,
-                        approval_manager=self.session.approval_manager
+                        hook_system=self.session.hook_system,
+                        approval_manager=self.session.approval_manager,
                     )
                     
                     yield AgentEvent.tool_call_complete(

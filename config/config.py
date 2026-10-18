@@ -54,6 +54,29 @@ class MCPServerConfig(BaseModel):
         
         return self
     
+class HookTrigger(str, Enum):
+    BEFORE_AGENT = "before_agent"
+    AFTER_AGENT = "after_agent"
+    BEFORE_TOOL = "before_tool"
+    AFTER_TOOL = "after_tool"
+    ON_ERROR = "on_error"
+
+
+class HookConfig(BaseModel):
+    name: str
+    trigger: HookTrigger
+    command: str | None = None  
+    script: str | None = None  
+    timeout_sec: float = 30
+    enabled: bool = True
+
+    @model_validator(mode="after")
+    def validate_hook(self) -> HookConfig:
+        if not self.command and not self.script:
+            raise ValueError("Hook must either have 'command' or 'script'")
+        return self
+    
+    
 class Config(BaseModel):
     model: ModelConfig = Field(default_factory=ModelConfig)
     cwd: Path = Field(default_factory=Path.cwd)
@@ -67,6 +90,8 @@ class Config(BaseModel):
         description="If set, only these tools will be available to the agent"
     )
     approval: ApprovalPolicy = ApprovalPolicy.ON_REQUEST
+    hook_enabled: bool = False
+    hooks: list[HookConfig] = Field(default_factory=list)
     
     developer_instructions: str | None = None
     user_instructions: str | None = None
