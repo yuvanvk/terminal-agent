@@ -49,6 +49,18 @@ class ContextManager:
 
         self._lastest_usage = TokenUsage()
         self._total_usage = TokenUsage()
+        
+    @property
+    def message_count(self) -> int:
+        return len(self._messages)
+    
+    @property
+    def total_usage(self) -> TokenUsage:
+        return self._total_usage
+    
+    @total_usage.setter
+    def total_usage(self, usage: TokenUsage) -> None:
+        self._total_usage = usage
 
     def add_user_message(self, content: str) -> None:
         message = Message(
@@ -189,3 +201,5 @@ class ContextManager:
 
         return pruned_count
                 
+    def clear(self) -> None:
+        self._messages.clear()

@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import datetime
+from typing import Any
 
 from client.llm_client import LLMClient
 from config.config import Config
@@ -39,6 +40,14 @@ class Session:
         self.chat_compactor = ChatCompactor(client=self.client)
 
         self._turn_count = 0
+        
+    @property
+    def turn_count(self) -> int:
+        return self._turn_count
+    
+    @turn_count.setter
+    def turn_count(self, ctn: int) -> None:
+        self._turn_count = ctn
         
     async def initialise(self):
         await self.mcp_manager.initialize()
@@ -79,3 +88,14 @@ class Session:
         self.updated_at = datetime.now()
 
         return self._turn_count
+
+    def get_stats(self) -> dict[str, Any]:
+        return {
+            "session_id": self.session_id,
+            "created_at": self.created_at.isoformat(),
+            "turn_count": self._turn_count,
+            "message_count": self._context_manager.message_count,
+            "token_usage": self._context_manager.total_usage,
+            "tools_count": len(self._tool_registry.get_tools()),
+            "mcp_tools": len(self._tool_registry.connected_mcp_servers),
+        }

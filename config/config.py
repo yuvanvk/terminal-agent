@@ -90,7 +90,7 @@ class Config(BaseModel):
         description="If set, only these tools will be available to the agent"
     )
     approval: ApprovalPolicy = ApprovalPolicy.ON_REQUEST
-    hook_enabled: bool = False
+    hooks_enabled: bool = False
     hooks: list[HookConfig] = Field(default_factory=list)
     
     developer_instructions: str | None = None
@@ -101,18 +101,26 @@ class Config(BaseModel):
     @property
     def api_key(self) -> str | None:
         return os.environ.get("API_KEY")
-    
+
     @property
     def base_url(self) -> str | None:
         return os.environ.get("BASE_URL")
-    
+
     @property
     def model_name(self) -> str:
         return self.model.name
-    
+
     @model_name.setter
-    def model_name(self, val: str) -> None:
-        self.model.name = val
+    def model_name(self, value: str) -> None:
+        self.model.name = value
+
+    @property
+    def temperature(self) -> float:
+        return self.model.temperature
+
+    @temperature.setter
+    def temperature(self, value: str) -> None:
+        self.model.temperature = value
         
     def validate(self) -> list[str]:
         errors: list[str] = []

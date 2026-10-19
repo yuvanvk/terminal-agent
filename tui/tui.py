@@ -4,6 +4,7 @@ from typing import Any
 
 from rich import box
 from rich.console import Console, Group
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.rule import Rule
@@ -462,7 +463,7 @@ class TUI:
                 blocks.append(table)
             elif output_display.strip():
                 blocks.append(Text(output_display))
-                
+
         elif tool_call_name == "memory" and success:
             action = args.get("action")
             key = args.get("key")
@@ -546,39 +547,67 @@ class TUI:
         self.console.print(message, style="error")
 
     def handle_confirmation(self, confirmation: ToolConfirmation) -> bool:
-            output = [
-                Text(confirmation.tool_name, style="tool"),
-                Text(confirmation.description, style="code"),
-            ]
+        output = [
+            Text(confirmation.tool_name, style="tool"),
+            Text(confirmation.description, style="code"),
+        ]
 
-            if confirmation.command:
-                output.append(Text(f"$ {confirmation.command}", style="warning"))
+        if confirmation.command:
+            output.append(Text(f"$ {confirmation.command}", style="warning"))
 
-            if confirmation.diff:
-                diff_text = confirmation.diff.to_diff()
-                output.append(
-                    Syntax(
-                        diff_text,
-                        "diff",
-                        theme="monokai",
-                        word_wrap=True,
-                    )
-                )
-
-            self.console.print()
-            self.console.print(
-                Panel(
-                    Group(*output),
-                    title=Text("Approval required", style="warning"),
-                    title_align="left",
-                    border_style="warning",
-                    box=box.ROUNDED,
-                    padding=(1, 2),
+        if confirmation.diff:
+            diff_text = confirmation.diff.to_diff()
+            output.append(
+                Syntax(
+                    diff_text,
+                    "diff",
+                    theme="monokai",
+                    word_wrap=True,
                 )
             )
 
-            response = Prompt.ask(
-                "\nApprove?", choices=["y", "n", "yes", "no"], default="n"
+        self.console.print()
+        self.console.print(
+            Panel(
+                Group(*output),
+                title=Text("Approval required", style="warning"),
+                title_align="left",
+                border_style="warning",
+                box=box.ROUNDED,
+                padding=(1, 2),
             )
+        )
 
-            return response.lower() in {"y", "yes"}
+        response = Prompt.ask(
+            "\nApprove?", choices=["y", "n", "yes", "no"], default="n"
+        )
+
+        return response.lower() in {"y", "yes"}
+
+    def show_help(self) -> None:
+        help_text = """
+    ## Commands
+
+    - `/help` - Show this help
+    - `/exit` or `/quit` - Exit the agent
+    - `/clear` - Clear conversation history
+    - `/config` - Show current configuration
+    - `/model <name>` - Change the model
+    - `/approval <mode>` - Change approval mode
+    - `/stats` - Show session statistics
+    - `/tools` - List available tools
+    - `/mcp` - Show MCP server status
+    - `/save` - Save current session
+    - `/checkpoint [name]` - Create a checkpoint
+    - `/checkpoints` - List available checkpoints
+    - `/restore <checkpoint_id>` - Restore a checkpoint
+    - `/sessions` - List saved sessions
+    - `/resume <session_id>` - Resume a saved session
+
+    ## Tips
+
+    - Just type your message to chat with the agent
+    - The agent can read, write, and execute code
+    - Some operations require approval (can be configured)
+    """
+        self.console.print(Markdown(help_text))
