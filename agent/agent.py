@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Callable
 from typing import Self
 
 from agent.events import AgentEvent, AgentEventType
 from agent.session import Session
 from client.response import StreamEventType, ToolCall, ToolCallMessage
 from config.config import Config
+from prompts.system import create_loop_breaker_prompt
 from tools.base import ToolConfirmation
 
 
@@ -91,6 +92,7 @@ class Agent:
                 )
             if full_response:
                 yield AgentEvent.text_complete(content=full_response)
+                self.session.loop_detector.record_action(action_type='response', text=full_response)
         
             if not tool_calls:
                 if usage:
@@ -109,6 +111,12 @@ class Agent:
                         tool_call_id=tool_call.id,
                         arguments=tool_call.arguments
                     )
+                    self.session.loop_detector.record_action(
+                        action_type='tool_call', 
+                        tool_call=tool_call.name, 
+                        args=tool_call.arguments
+                    )
+
                     
                     # execute the tool_call
                     result = await self.session._tool_registry.invoke(
@@ -138,6 +146,12 @@ class Agent:
                     tool_call_id=tool_call_result.tool_call_id, 
                     content=tool_call_result.content
                 )
+            
+            loop = self.session.loop_detector.check_for_loop()
+            if loop:
+                steer_prompt = create_loop_breaker_prompt(loop_description=loop)
+                self.session._context_manager.add_user_message(steer_prompt)
+                continue
             
             if usage:
                 self.session._context_manager.set_latest_usage(usage=usage)

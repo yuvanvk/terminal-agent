@@ -7,6 +7,7 @@ from config.config import Config
 from config.loader import get_data_dir
 from context.compaction import ChatCompactor
 from context.context_manager import ContextManager
+from context.loop_detector import LoopDetector
 from hooks.hook_system import HookSystem
 from safety.approval import ApprovalManager
 from tools.discovery import ToolDiscoveryManager
@@ -34,6 +35,7 @@ class Session:
         
         self.mcp_manager = MCPManager(config=self.config)
         self.hook_system = HookSystem(config=self.config)
+        self.loop_detector = LoopDetector()
         self.chat_compactor = ChatCompactor(client=self.client)
 
         self._turn_count = 0
