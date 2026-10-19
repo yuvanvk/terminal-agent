@@ -248,6 +248,60 @@ class CLI:
                     console.print(
                         f"[success]Resumed session: {session.session_id}[/success]"
                     )
+        elif cmd_name == "/checkpoint":
+            persistence_manager = PersistenceManager()
+            session_snapshot = SessionSnapshot(
+                session_id=self.agent.session.session_id,
+                created_at=self.agent.session.created_at,
+                updated_at=self.agent.session.updated_at,
+                turn_count=self.agent.session.turn_count,
+                messages=self.agent.session._context_manager.get_messages(),
+                total_usage=self.agent.session._context_manager.total_usage,
+            )
+            checkpoint_id = persistence_manager.save_checkpoint(session_snapshot)
+            console.print(f"[success]Checkpoint created: {checkpoint_id}[/success]")
+        elif cmd_name == "/restore":
+            if not cmd_args:
+                console.print("[error]Usage: /restire <checkpoint_id> [/error]")
+            else:
+                persistence_manager = PersistenceManager()
+                snapshot, checkpoint_id = persistence_manager.load_checkpoint(cmd_args)
+                if not snapshot:
+                    console.print("[error]Checkpoint does not exist [/error]")
+                else:
+                    session = Session(
+                        config=self.config,
+                    )
+                    await session.initialise()
+                    session.session_id = snapshot.session_id
+                    session.created_at = snapshot.created_at
+                    session.updated_at = snapshot.updated_at
+                    session.turn_count = snapshot.turn_count
+                    session._context_manager.total_usage = snapshot.total_usage
+
+                    for msg in snapshot.messages:
+                        if msg.get("role") == "system":
+                            continue
+                        elif msg["role"] == "user":
+                            session._context_manager.add_user_message(
+                                msg.get("content", "")
+                            )
+                        elif msg["role"] == "assistant":
+                            session._context_manager.add_assistant_message(
+                                msg.get("content", ""), msg.get("tool_calls")
+                            )
+                        elif msg["role"] == "tool":
+                            session._context_manager.add_tool_result(
+                                msg.get("tool_call_id", ""), msg.get("content", "")
+                            )
+
+                    await self.agent.session.client.close()
+                    await self.agent.session.mcp_manager.shutdown()
+
+                    self.agent.session = session
+                    console.print(
+                        f"[success]Resumed session: {session.session_id}, checkpoint: {checkpoint_id}[/success]"
+                    )
         else:
             console.print(f"[error]Unknown command: {cmd_name}[/error]")
 

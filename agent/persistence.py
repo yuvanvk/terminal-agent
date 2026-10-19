@@ -97,7 +97,7 @@ class PersistenceManager:
         os.chmod(file_path, 0o600)
         return checkpoint_id
 
-    def load_checkpoint(self, checkpoint_id: str) -> SessionSnapshot | None:
+    def load_checkpoint(self, checkpoint_id: str) -> tuple[SessionSnapshot, str] | None:
         file_path = self.checkpoints_dir / f"{checkpoint_id}.json"
 
         if not file_path.exists():
@@ -106,4 +106,4 @@ class PersistenceManager:
         with open(file_path, "r", encoding="utf-8") as fp:
             data = json.load(fp)
 
-        return SessionSnapshot.from_dict(data)
+        return SessionSnapshot.from_dict(data), checkpoint_id
